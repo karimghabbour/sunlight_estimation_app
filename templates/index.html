@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Sunlight Estimation App</title>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Sunlight Estimation Application</h1>
+        <form id="sunlight-form">
+            <label for="location">Enter Location:</label>
+            <input type="text" id="location" name="location" placeholder="e.g., Café Zurich, Barcelona" required>
+            
+            <label for="radius">Radius for Suggestions (meters):</label>
+            <input type="number" id="radius" name="radius" value="500" min="100" max="1000">
+            
+            <button type="submit">Check Sunlight</button>
+        </form>
+        
+        <div id="results" class="hidden">
+            <h2>Current Sunlight Status:</h2>
+            <p id="current-status"></p>
+            <h3>Confidence Level:</h3>
+            <p id="confidence-level"></p>
+            <h3>Nearby Sunny Locations:</h3>
+            <ul id="nearby-locations"></ul>
+        </div>
+        
+        <div id="error-message" class="hidden">
+            <p></p>
+        </div>
+    </div>
+    
+    <script>
+        document.getElementById('sunlight-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const location = document.getElementById('location').value;
+            const radius = document.getElementById('radius').value;
+            
+            fetch('/api/sunlight', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ location: location, radius_meters: parseInt(radius) }),
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    document.getElementById('error-message').classList.remove('hidden');
+                    document.getElementById('error-message').innerHTML = `<p>${data.error}</p>`;
+                    document.getElementById('results').classList.add('hidden');
+                } else {
+                    document.getElementById('error-message').classList.add('hidden');
+                    document.getElementById('current-status').innerText = data.current_sunlight_status ? "☀️ Sunlight is present." : "🌑 It is currently shaded.";
+                    document.getElementById('confidence-level').innerText = `${(data.confidence_level * 100).toFixed(2)}%`;
+                    
+                    const list = document.getElementById('nearby-locations');
+                    list.innerHTML = '';
+                    data.nearby_sunny_locations.forEach(loc => {
+                        const listItem = document.createElement('li');
+                        listItem.innerHTML = `<strong>${loc.location_name}</strong> (${loc.coordinates.latitude.toFixed(4)}, ${loc.coordinates.longitude.toFixed(4)}) - Confidence: ${(loc.confidence_level * 100).toFixed(2)}%`;
+                        list.appendChild(listItem);
+                    });
+                    
+                    document.getElementById('results').classList.remove('hidden');
+                }
+            })
+            .catch((error) => {
+                console.error('Error:', error);
+                document.getElementById('error-message').classList.remove('hidden');
+                document.getElementById('error-message').innerHTML = `<p>An error occurred while processing your request.</p>`;
+                document.getElementById('results').classList.add('hidden');
+            });
+        });
+    </script>
+</body>
+</html>
